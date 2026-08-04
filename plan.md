@@ -401,6 +401,18 @@ test: 장바구니 수량 변경 테스트 추가
 - Backend 통합 테스트: `19 passed`
 - Backend와 Frontend Python 문법 검사 완료
 - 테스트는 Supabase를 직접 호출하지 않는 모킹 방식으로 수행
+- 최신 주문 상태 기능과 카테고리 기능을 함께 로드한 상태에서 테스트 완료
+
+### Git 반영 현황
+
+- 작업 브랜치: `feature/category`
+- 카테고리 구현 커밋: `2e5ca5a`
+- `feature/category` 원격 브랜치 생성 및 push 완료
+- 카테고리 기능을 로컬 `develop`에 병합 완료
+- 최신 `origin/develop`의 주문 상태 기능과 충돌 해결 완료
+- 통합 커밋 `7565a58`을 `origin/develop`에 push 완료
+- 팀 운영 방식에 따라 각 기능을 `develop`에 모아 통합 테스트한 뒤 최종적으로 `main`에 병합한다.
+- `develop` 직접 반영 시에도 최신 원격 변경을 먼저 병합하고 테스트를 통과한 후 push한다.
 
 ### Supabase 확인 및 역할 경계
 
@@ -410,5 +422,12 @@ test: 장바구니 수량 변경 테스트 추가
 - 장상옥은 ERD를 기준으로 코드와 문서를 완성해 인계한다.
 - Supabase 테이블 생성·수정, 환경 변수 설정 및 실제 DB 통합은 윤기화가 담당한다.
 - DB 스키마 적용 후 전체 팀원이 실제 연결 통합 테스트를 진행한다.
+
+### 남은 작업
+
+- Supabase 담당자의 ERD 기준 `customers` 테이블 수정 확인
+- 실제 Supabase 연결 환경에서 카테고리 CRUD와 상품 연결 테스트
+- 다른 담당 기능이 모두 합쳐진 `develop` 최종 통합 테스트
+- 전체 검증 완료 후 관리자가 `develop`을 `main`에 병합
 
 </details>
