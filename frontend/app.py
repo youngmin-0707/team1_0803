@@ -58,7 +58,7 @@ health_page = st.Page("app_pages/04_health.py", title="서버체크", icon="❤�
 product_management_page = st.Page("app_pages/07_product_management.py", title="Product Management", icon="📥")
 mypage_page = st.Page("app_pages/08_mypage.py", title="My Page", icon="📥")
 category_page = st.Page("app_pages/09_category.py", title="카테고리", icon="🗂️")
-
+review_page = st.Page("app_pages/10_review.py", title="상품 리뷰", icon="⭐")
 
 
 if st.session_state.loginout == "login":
@@ -67,6 +67,7 @@ if st.session_state.loginout == "login":
         mypage_page,
         product_management_page,
         category_page,
+        review_page,
         # product_create_page,
         # product_select_page,
     ]
@@ -83,6 +84,7 @@ with st.sidebar:
         st.page_link(mypage_page)
         st.page_link(product_management_page)
         st.page_link(category_page)
+        st.page_link(review_page)
         st.button("LOGOUT", on_click=logout, use_container_width=True)
         # st.page_link(product_create_page)
         # st.page_link(product_select_page)
