@@ -30,11 +30,6 @@ CANCELLABLE_STATUSES = {"pending", "paid"}
 TERMINAL_STATUSES = {"cancelled", "refunded", "returned"}
 
 
-def _generate_id(seq: int = 0) -> str:
-    now = datetime.now(ZoneInfo("Asia/Seoul"))
-    return f"{now.strftime('%Y%m%d%H%M%S%f')}{seq:02d}"
-
-
 def _get_product(supabase, product_id: str) -> dict | None:
     result = (
         supabase.table("products")
@@ -47,10 +42,20 @@ def _get_product(supabase, product_id: str) -> dict | None:
     return result.data[0]
 
 
-# 1. 주문 생성 (상품 목록 -> 주문 + 주문 상품 저장)
+def _adjust_stock(supabase, product_id: str, current_stock: int, delta: int) -> None:
+    result = (
+        supabase.table("products")
+        .update({"stock": current_stock + delta})
+        .eq("id", product_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=500, detail="재고 반영에 실패했습니다.")
+
+
+# 1. 주문 생성 (상품 목록 -> 주문 + 주문 상품 저장, 재고 차감)
 def order_create(order: OrderCreate) -> OrderDetailPublic:
     supabase = get_supabase()
-    now = datetime.now(ZoneInfo("Asia/Seoul"))
 
     products_by_id: dict[str, dict] = {}
     for item in order.items:
@@ -60,40 +65,41 @@ def order_create(order: OrderCreate) -> OrderDetailPublic:
                 status_code=404,
                 detail=f"상품 ID {item.product_id}를 찾을 수 없습니다.",
             )
+        if product["stock"] < item.quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"상품 '{product['name']}'의 재고가 부족합니다. (재고: {product['stock']})",
+            )
         products_by_id[item.product_id] = product
 
-    order_id = _generate_id()
     order_result = (
         supabase.table("orders")
         .insert(
             {
-                "id": order_id,
                 "customer_id": order.customer_id,
                 "status": "pending",
                 "shipping_address": order.shipping_address,
-                "created_at": now.isoformat(),
-                "updated_at": now.isoformat(),
             }
         )
         .execute()
     )
     if not order_result.data:
         raise HTTPException(status_code=500, detail="주문 생성에 실패했습니다.")
+    order_data = order_result.data[0]
+    order_id = order_data["id"]
 
     order_items: list[OrderItemPublic] = []
-    for seq, item in enumerate(order.items, start=1):
+    for item in order.items:
         product = products_by_id[item.product_id]
         item_result = (
             supabase.table("order_items")
             .insert(
                 {
-                    "id": _generate_id(seq),
                     "order_id": order_id,
                     "product_id": item.product_id,
                     "product_name": product["name"],
                     "quantity": item.quantity,
                     "price": product["price"],
-                    "created_at": now.isoformat(),
                 }
             )
             .execute()
@@ -101,8 +107,8 @@ def order_create(order: OrderCreate) -> OrderDetailPublic:
         if not item_result.data:
             raise HTTPException(status_code=500, detail="주문 상품 저장에 실패했습니다.")
         order_items.append(OrderItemPublic.model_validate(item_result.data[0]))
+        _adjust_stock(supabase, item.product_id, product["stock"], -item.quantity)
 
-    order_data = order_result.data[0]
     total_amount = sum(oi.price * oi.quantity for oi in order_items)
     return OrderDetailPublic.model_validate(
         {**order_data, "items": order_items, "total_amount": total_amount}
@@ -137,19 +143,23 @@ def order_get(order_id: str) -> OrderDetailPublic | None:
     if not order_result.data:
         return None
 
-    items_result = (
-        supabase.table("order_items")
-        .select("*")
-        .eq("order_id", order_id)
-        .execute()
-    )
-    items = [OrderItemPublic.model_validate(item) for item in items_result.data]
+    items = _get_order_items(supabase, order_id)
     total_amount = sum(item.price * item.quantity for item in items)
 
     order_data = order_result.data[0]
     return OrderDetailPublic.model_validate(
         {**order_data, "items": items, "total_amount": total_amount}
     )
+
+
+def _get_order_items(supabase, order_id: str) -> list[OrderItemPublic]:
+    result = (
+        supabase.table("order_items")
+        .select("*")
+        .eq("order_id", order_id)
+        .execute()
+    )
+    return [OrderItemPublic.model_validate(item) for item in result.data]
 
 
 def _get_active_order(supabase, order_id: str) -> dict | None:
@@ -197,7 +207,7 @@ def order_update_status(order_id: str, status: str) -> OrderPublic:
     return _apply_status(supabase, order_id, status)
 
 
-# 5. 주문 취소
+# 5. 주문 취소 (재고 복원)
 def order_cancel(order_id: str) -> OrderPublic:
     supabase = get_supabase()
     order = _get_active_order(supabase, order_id)
@@ -210,7 +220,14 @@ def order_cancel(order_id: str) -> OrderPublic:
             detail=f"현재 상태({order['status']})에서는 주문을 취소할 수 없습니다.",
         )
 
-    return _apply_status(supabase, order_id, "cancelled")
+    updated_order = _apply_status(supabase, order_id, "cancelled")
+
+    for item in _get_order_items(supabase, order_id):
+        product = _get_product(supabase, item.product_id)
+        if product is not None:
+            _adjust_stock(supabase, item.product_id, product["stock"], item.quantity)
+
+    return updated_order
 
 
 # 6. 주문 삭제 (소프트 삭제)
