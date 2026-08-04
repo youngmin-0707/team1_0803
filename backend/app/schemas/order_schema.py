@@ -38,3 +38,7 @@ class OrderPublic(BaseModel):
 class OrderDetailPublic(OrderPublic):
     items: list[OrderItemPublic]
     total_amount: int
+
+
+class OrderStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, examples=["paid"])

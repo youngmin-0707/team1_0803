@@ -1,11 +1,13 @@
 from datetime import datetime
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.routers import order_router
 from app.schemas.order_schema import OrderDetailPublic, OrderItemPublic, OrderPublic
 
+app = FastAPI()
+app.include_router(order_router.order_router)
 client = TestClient(app)
 
 
@@ -94,3 +96,36 @@ def test_get_all_orders_returns_order_list(monkeypatch):
     assert response.status_code == 200
     assert response.json()["success"] is True
     assert len(response.json()["data"]) == 2
+
+
+def test_update_status_uses_path_order_id(monkeypatch):
+    received = {}
+
+    def fake_update_status(order_id, status):
+        received["order_id"] = order_id
+        received["status"] = status
+        order = make_order(order_id)
+        order.status = status
+        return order
+
+    monkeypatch.setattr(order_router, "order_update_status", fake_update_status)
+
+    response = client.patch("/order/order-1/status", json={"status": "paid"})
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "paid"
+    assert received == {"order_id": "order-1", "status": "paid"}
+
+
+def test_cancel_order_returns_cancelled_order(monkeypatch):
+    def fake_cancel(order_id):
+        order = make_order(order_id)
+        order.status = "cancelled"
+        return order
+
+    monkeypatch.setattr(order_router, "order_cancel", fake_cancel)
+
+    response = client.post("/order/order-1/cancel")
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "cancelled"
