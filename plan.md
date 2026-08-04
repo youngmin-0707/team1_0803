@@ -1,21 +1,66 @@
 # 쇼핑몰 프로젝트 계획서
 
-## 1. 프로젝트 개요
+<details>
+<summary><strong>1. 프로젝트 개요</strong></summary>
 
 - Streamlit, FastAPI, Supabase를 이용해 쇼핑몰 서비스를 구현한다.
 - 기존 회원가입, 로그인, 상품 기능을 기반으로 카테고리, 상품 리뷰, 상품 문의, 장바구니, 주문 기능을 추가한다.
 - 프런트엔드에서 Supabase를 직접 호출하지 않고 FastAPI를 통해 데이터를 처리한다.
 
-## 2. 팀 ERD
+</details>
 
-- ERD Cloud: https://www.erdcloud.com/d/Q5BqvFNbwXWZtZvnG
+<details>
+<summary><strong>2. 팀 ERD</strong></summary>
+
+- ERD Cloud: https://www.erdcloud.com/d/Kmq3jGGpWcrm8LWyi
 - ERD 및 Supabase 테이블 관리자: 윤기화
 - 테이블명, 컬럼명, 데이터 타입, PK 및 FK 관계는 팀 ERD를 기준으로 한다.
 - 테이블 구조 변경이 필요하면 팀장과 먼저 협의한다.
 - ERD가 변경되면 Supabase 테이블과 이 문서를 함께 업데이트한다.
-- 상세 테이블 및 컬럼 목록은 팀장의 최종 스키마 전달 후 추가한다.
 
-## 3. 기능 역할 분담
+### 테이블 및 컬럼
+
+| 테이블 | 컬럼 | 주요 관계 및 용도 |
+|---|---|---|
+| `customers` | `id uuid PK`, `pwd text NOT NULL`, `name text NOT NULL`, `created_at timestamp NOT NULL`, `updated_at timestamp NOT NULL` | UUID로 회원을 식별하며 생성·수정 시각을 저장 |
+| `categories` | `id uuid`, `name text`, `updated_at timestamp`, `created_at timestamp` | 상품 카테고리 |
+| `products` | `id uuid PK`, `name text NOT NULL`, `price integer NOT NULL`, `stock integer NOT NULL`, `category_id uuid FK`, `created_at timestamp NOT NULL`, `updated_at timestamp NOT NULL` | `category_id`로 카테고리를 참조하며 가격·재고는 0 이상 |
+| `carts` | `id uuid`, `customer_id uuid`, `product_id uuid`, `quantity integer`, `created_at timestamp`, `updated_at timestamp` | 회원과 상품을 참조하는 장바구니 항목 |
+| `orders` | `id uuid`, `customer_id uuid`, `status order_status`, `shipping_address text`, `created_at timestamp`, `updated_at timestamp`, `deleted_at timestamp` | 회원을 참조하는 주문 대표 정보 |
+| `order_items` | `id uuid`, `order_id uuid`, `product_id uuid`, `product_name text`, `quantity integer`, `price integer`, `created_at timestamp` | 주문과 상품을 참조하는 주문 상세 항목 |
+| `reviews` | `id uuid`, `product_id uuid`, `customer_id uuid`, `rating integer`, `content text`, `created_at timestamp`, `updated_at timestamp` | 회원이 상품에 작성한 리뷰 |
+| `inquiries` | `id uuid`, `product_id uuid`, `customer_id uuid`, `title text`, `content text`, `answer text`, `answered_at timestamp`, `created_at timestamp`, `updated_at timestamp` | 회원이 상품에 작성한 문의와 답변 |
+
+### 테이블 관계
+
+- `categories` 1 : N `products`
+- `customers` 1 : N `carts`
+- `products` 1 : N `carts`
+- `customers` 1 : N `orders`
+- `orders` 1 : N `order_items`
+- `products` 1 : N `order_items`
+- `customers` 1 : N `reviews`
+- `products` 1 : N `reviews`
+- `customers` 1 : N `inquiries`
+- `products` 1 : N `inquiries`
+
+### ERD 적용 시 주의사항
+
+- 주요 테이블의 ID와 외래키는 `uuid` 타입을 사용한다.
+- `customers.id`와 `products.id`는 과거 예제의 `text`가 아니라 ERD의 `uuid`를 사용한다.
+- 회원가입 시 `customers.id` UUID를 발급하며 로그인에는 발급된 UUID를 사용한다.
+- `customers.created_at`, `customers.updated_at`, `products.created_at`, `products.updated_at`은 ERD와 동일한 `timestamp`로 저장한다.
+- 상품 재고는 `products.stock`에 저장한다.
+- 상품 등록 및 수정 API는 `stock`을 필수로 받고 0 이상의 정수인지 검증한다.
+- 주문 상태는 ERD에 정의된 `order_status` 타입을 사용하며 실제 상태 값은 Supabase 생성 스크립트를 기준으로 한다.
+- 주문 당시 상품명과 가격은 `order_items.product_name`, `order_items.price`에 별도로 저장한다.
+- 주문 삭제 또는 취소 처리 시 `orders.deleted_at` 사용 여부를 주문 담당자와 확정한다.
+- 문의 답변 여부는 별도 상태 컬럼이 아니라 `answer`와 `answered_at`을 기준으로 판단한다.
+
+</details>
+
+<details>
+<summary><strong>3. 기능 역할 분담</strong></summary>
 
 | 담당자 | 담당 기능 | 난이도 | 주요 구현 내용 |
 |---|---|---:|---|
@@ -25,7 +70,10 @@
 | 장상옥 | 카테고리 | 하~중 | 카테고리 CRUD, 상품 연결, 카테고리별 상품 조회, 삭제 제한 |
 | 권오현 | 장바구니 | 중상 | 상품 담기, 수량 변경, 상품 삭제, 총금액 계산, 재고 확인, 주문 연동 |
 
-## 4. 공통 작업 담당
+</details>
+
+<details>
+<summary><strong>4. 공통 작업 담당</strong></summary>
 
 | 공통 작업 | 담당자 | 주요 업무 |
 |---|---|---|
@@ -48,15 +96,18 @@
 - 김인혜는 공통 테스트 항목, 테스트 결과 및 발견된 오류의 수정 여부를 관리한다.
 - 각 팀원은 자신이 작성한 API 명세를 장상옥에게 전달하고, 테스트 결과와 오류 내용을 김인혜에게 전달한다.
 
-## 5. 담당자별 기능 범위
+</details>
+
+<details>
+<summary><strong>5. 담당자별 기능 범위</strong></summary>
 
 ### 윤기화 — 주문
 
 - 주문 생성
 - 주문 상품 저장
 - 주문 목록 및 상세 조회
-- 주문 총금액 계산
-- 주문 당시 상품명과 가격 저장
+- `order_items.price * order_items.quantity` 합계로 주문 총금액 계산
+- 주문 당시 상품명과 가격을 `order_items`에 저장
 - 주문 상태 관리
 - 주문 취소
 - 주문 시 재고 차감
@@ -133,12 +184,15 @@
 - 통합 테스트용 계정과 테스트 데이터 준비 지원
 - 전체 팀원의 통합 테스트 환경 접속 여부 확인
 
-## 6. 프로젝트 디렉터리 구성
+</details>
+
+<details>
+<summary><strong>6. 프로젝트 디렉터리 구성</strong></summary>
 
 아래 구조는 현재 프로젝트 구성을 유지하면서 담당 기능을 추가하는 기준안이다.
 
 ```text
-mini_frontend_login_pwd/
+team1_0803/
 ├─ plan.md
 ├─ backend/
 │  ├─ .env
@@ -151,7 +205,8 @@ mini_frontend_login_pwd/
 │  │  ├─ review.sql
 │  │  ├─ inquiry.sql
 │  │  ├─ cart.sql
-│  │  └─ order.sql
+│  │  ├─ order.sql
+│  │  └─ order_item.sql
 │  ├─ app/
 │  │  ├─ main.py
 │  │  ├─ core/
@@ -212,8 +267,6 @@ mini_frontend_login_pwd/
       ├─ 02_signup.py
       ├─ 03_weather.py
       ├─ 04_health.py
-      ├─ 05_product_create.py
-      ├─ 06_product_select.py
       ├─ 07_product_management.py
       ├─ 08_mypage.py
       ├─ 09_category.py
@@ -233,7 +286,10 @@ mini_frontend_login_pwd/
 - 페이지 번호는 통합 시 중복되지 않도록 장상옥이 관리한다.
 - `backend/app/main.py`와 `frontend/app.py`의 최종 통합은 윤기화가 담당한다.
 
-## 7. 공통 파일명 및 코드 규칙
+</details>
+
+<details>
+<summary><strong>7. 공통 파일명 및 코드 규칙</strong></summary>
 
 | 구분 | 파일명 형식 | 예시 |
 |---|---|---|
@@ -253,7 +309,10 @@ mini_frontend_login_pwd/
 - Supabase 연결은 공통 `get_supabase()` 함수를 사용한다.
 - 각 담당자는 자신이 구현한 API 명세와 테스트 결과를 작성한다.
 
-## 8. Git 작업 규칙
+</details>
+
+<details>
+<summary><strong>8. Git 작업 규칙</strong></summary>
 
 ### 브랜치
 
@@ -294,7 +353,10 @@ docs: 상품 문의 API 명세 추가
 test: 장바구니 수량 변경 테스트 추가
 ```
 
-## 9. 기능 개발 순서
+</details>
+
+<details>
+<summary><strong>9. 기능 개발 순서</strong></summary>
 
 1. 윤기화가 ERD와 Supabase 테이블을 확정하고 공유한다.
 2. 각 담당자가 자신의 테이블명, 컬럼, PK 및 FK를 확인한다.
@@ -304,7 +366,10 @@ test: 장바구니 수량 변경 테스트 추가
 6. Pull Request를 생성하고 윤기화가 `develop`에 통합한다.
 7. 전체 팀원이 최종 통합 테스트를 진행하고 김인혜가 결과와 오류 수정 여부를 정리한다.
 
-## 10. 기능 완료 조건
+</details>
+
+<details>
+<summary><strong>10. 기능 완료 조건</strong></summary>
 
 - [ ] ERD와 동일한 테이블명 및 컬럼명을 사용했다.
 - [ ] Backend Schema, Service, Router를 구현했다.
@@ -315,3 +380,36 @@ test: 장바구니 수량 변경 테스트 추가
 - [ ] 본인 데이터에 대한 수정 및 삭제 권한을 확인한다.
 - [ ] API 명세와 테스트 결과를 작성했다.
 - [ ] `develop` 브랜치에서 다른 기능과 함께 정상 실행된다.
+
+</details>
+
+<details>
+<summary><strong>11. 장상옥 담당 구현 및 인계 현황</strong></summary>
+
+### 구현 완료
+
+- 카테고리 등록, 목록·상세 조회, 수정 및 삭제 API
+- 앞뒤 공백과 대소문자를 고려한 카테고리 이름 중복 방지
+- 상품의 `category_id` 연결 및 카테고리별 상품 조회
+- 연결 상품이 존재하는 카테고리 삭제 제한
+- 관리자용 카테고리 관리 및 사용자용 카테고리별 상품 조회 화면
+- 상품 등록·수정 화면의 카테고리와 재고 입력 연동
+- 카테고리 API 명세 및 Router 단위 테스트
+- ERD 기준 `customers`, `products` UUID·컬럼 타입 정합화
+
+### 검증 결과
+
+- Backend 테스트: `15 passed`
+- Backend와 Frontend Python 문법 검사 완료
+- 테스트는 Supabase를 직접 호출하지 않는 모킹 방식으로 수행
+
+### Supabase 확인 및 역할 경계
+
+- 2026-08-04 확인 당시 `products`는 ERD 컬럼과 일치하며 데이터는 0건이었다.
+- 같은 시점의 `customers`는 `id`, `product_id`, `name`, `answered_at`으로 잘못 생성돼 있었고 데이터는 0건이었다.
+- 잘못된 `customers` 테이블 상태는 Supabase·ERD 담당자에게 전달했다.
+- 장상옥은 ERD를 기준으로 코드와 문서를 완성해 인계한다.
+- Supabase 테이블 생성·수정, 환경 변수 설정 및 실제 DB 통합은 윤기화가 담당한다.
+- DB 스키마 적용 후 전체 팀원이 실제 연결 통합 테스트를 진행한다.
+
+</details>
