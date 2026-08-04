@@ -1,100 +1,64 @@
-# product_router.py
+# 작성자: 권오현
+# 작업 구분: port
 
-from fastapi import APIRouter, HTTPException
+from uuid import UUID
 
+from fastapi import APIRouter
+
+from app.core.api_response import ApiResponse
 from app.schemas.product_schema import ProductCreate, ProductUpdate
 from app.services.product_service import (
-    product_create,
-    product_delete,
-    product_get,
-    product_get_all,
-    product_update,
+    create_product,
+    delete_product,
+    get_product,
+    get_products,
+    update_product,
 )
-from app.core.api_response import ApiResponse
 
-product_router = APIRouter()
 
-# 200: 정상 - 정상 실행 되면 자동 전송
-# 400: 잘못된 요청
-# 401: 로그인 필요
-# 403: 권한 없음
-# 404: 데이터 없음
-# 409: 중복 데이터
-# 422: 입력값 검증 실패
-# 500: 서버 또는 DB 처리 실패
+product_router = APIRouter(prefix="/products", tags=["Product"])
 
-# 1. create
-@product_router.post("/product/create")
-def create(product: ProductCreate) -> ApiResponse:
-    created_product = product_create(product)
-    if created_product is None:
-        raise HTTPException(
-            status_code=500,
-            detail="상품 등록에 실패했습니다.",
-        )
-    response = ApiResponse(
-        success = True,
-        message="상품이 등록되었습니다.",
-        data = created_product
+
+@product_router.post("")
+def create(payload: ProductCreate) -> ApiResponse:
+    return ApiResponse(
+        success=True,
+        message="상품을 등록했습니다.",
+        data=create_product(payload),
     )
-    return response
 
-# 2. 한개 조회
-@product_router.get("/product/get/{product_id}")
-def get(product_id: str) -> ApiResponse:
 
-    product = product_get(product_id)
-    if product is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"상품 ID {product_id}를 찾을 수 없습니다."
-        )
-    response = ApiResponse(
-        success = True,
-        message="상품 조회에 성공했습니다.",
-        data = product
+@product_router.get("")
+def read_all() -> ApiResponse:
+    return ApiResponse(
+        success=True,
+        message="상품 목록을 조회했습니다.",
+        data=get_products(),
     )
-    return response
 
-# 3. 전체 조회
-@product_router.get("/product/getall")
-def get_all() -> ApiResponse:
-    products = product_get_all()
-    response = ApiResponse(
-        success = True,
-        message="상품 목록 조회에 성공했습니다.",
-        data = products
-    )
-    return response
 
-# 4. 한개 삭제
-@product_router.delete("/product/delete/{product_id}")
-def delete(product_id: str) -> ApiResponse:
-    product = product_delete(product_id)
-    if product is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"상품 ID {product_id}를 찾을 수 없습니다."
-        )
-    response = ApiResponse(
-        success = True,
-        message="상품이 삭제되었습니다.",
-        data = product
+@product_router.get("/{product_id}")
+def read(product_id: UUID) -> ApiResponse:
+    return ApiResponse(
+        success=True,
+        message="상품을 조회했습니다.",
+        data=get_product(product_id),
     )
-    return response
 
-# 5. 수정
-@product_router.put("/product/{product_id}")
-def update(product_id: str, product: ProductUpdate) -> ApiResponse:
-    updated_product = product_update(product_id, product)
-    if updated_product is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"상품 ID {product_id}를 찾을 수 없습니다."
-        )
-    response = ApiResponse(
-        success = True,
-        message="상품이 수정되었습니다.",
-        data = updated_product
+
+@product_router.patch("/{product_id}")
+def update(product_id: UUID, payload: ProductUpdate) -> ApiResponse:
+    return ApiResponse(
+        success=True,
+        message="상품 정보를 수정했습니다.",
+        data=update_product(product_id, payload),
     )
-    return response
+
+
+@product_router.delete("/{product_id}")
+def delete(product_id: UUID) -> ApiResponse:
+    return ApiResponse(
+        success=True,
+        message="상품을 삭제했습니다.",
+        data=delete_product(product_id),
+    )

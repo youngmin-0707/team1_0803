@@ -1,91 +1,92 @@
-# product_service.py
+# 작성자: 권오현
+# 작업 구분: port
+
+from datetime import datetime, timezone
+from typing import Any
+from uuid import UUID
+
+from fastapi import HTTPException
+
+from app.core.supabase_client import get_supabase
 from app.schemas.product_schema import (
-    ProductCreate, 
-    ProductPublic, 
+    ProductCreate,
+    ProductPublic,
     ProductUpdate,
 )
-from app.core.supabase_client import get_supabase
-from zoneinfo import ZoneInfo
-from datetime import datetime
 
-# 1. 입력
-def product_create(product: ProductCreate) -> ProductPublic | None:
-    supabase = get_supabase()
-    now = datetime.now(ZoneInfo("Asia/Seoul"))
 
-    result = (
-        supabase.table("products")
-         .insert(
-            {
-                "id": now.strftime("%Y%m%d%H%M%S%f"),
-                "name": product.name,
-                "price": product.price,
-                "created_at": now.isoformat(),   # timestamptz
-            }
-        )
-        .execute()
+def _execute(query: Any, message: str) -> list[dict[str, Any]]:
+    try:
+        result = query.execute()
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=message) from error
+    return result.data or []
+
+
+def create_product(payload: ProductCreate) -> ProductPublic:
+    values = payload.model_dump(mode="json")
+    values["name"] = payload.name.strip()
+    rows = _execute(
+        get_supabase().table("products").insert(values),
+        "상품을 등록하는 중 오류가 발생했습니다.",
     )
-    if not result.data:
-        return None
-    return ProductPublic.model_validate(result.data[0])
+    if not rows:
+        raise HTTPException(status_code=500, detail="상품 등록 결과가 없습니다.")
+    return ProductPublic.model_validate(rows[0])
 
-# 2. 전체조회
-def product_get_all() -> list[ProductPublic]:
-    supabase = get_supabase()
-    result = (
-        supabase.table("products")
-        .select("*")
-        .execute()
+
+def get_products() -> list[ProductPublic]:
+    rows = _execute(
+        get_supabase().table("products")
+        .select("id,name,price,stock,category_id,created_at,updated_at")
+        .order("created_at"),
+        "상품 목록을 조회하는 중 오류가 발생했습니다.",
     )
-    return [ProductPublic.model_validate(item) for item in result.data]
+    return [ProductPublic.model_validate(row) for row in rows]
 
-# 3. 한개조회
-def product_get(product_id: str) -> ProductPublic | None:
-    supabase = get_supabase()
 
-    result = (
-        supabase.table("products")
-        .select("*")
-        .eq("id", product_id)
-        .execute()
+def get_product(product_id: UUID) -> ProductPublic:
+    rows = _execute(
+        get_supabase().table("products")
+        .select("id,name,price,stock,category_id,created_at,updated_at")
+        .eq("id", str(product_id))
+        .limit(1),
+        "상품을 조회하는 중 오류가 발생했습니다.",
     )
-    if not result.data:
-        return None
-    return ProductPublic.model_validate(result.data[0])
+    if not rows:
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다.")
+    return ProductPublic.model_validate(rows[0])
 
 
-# 4. 삭제
-def product_delete(product_id: str) -> ProductPublic | None:
-    supabase = get_supabase()
-    result = (
-        supabase.table("products")
+def update_product(
+    product_id: UUID,
+    payload: ProductUpdate,
+) -> ProductPublic:
+    get_product(product_id)
+    values = payload.model_dump(mode="json", exclude_unset=True)
+    if "name" in values and values["name"] is not None:
+        values["name"] = values["name"].strip()
+    values["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    rows = _execute(
+        get_supabase().table("products")
+        .update(values)
+        .eq("id", str(product_id)),
+        "상품 정보를 수정하는 중 오류가 발생했습니다.",
+    )
+    if not rows:
+        raise HTTPException(status_code=500, detail="상품 수정 결과가 없습니다.")
+    return ProductPublic.model_validate(rows[0])
+
+
+def delete_product(product_id: UUID) -> ProductPublic:
+    get_product(product_id)
+    rows = _execute(
+        get_supabase().table("products")
         .delete()
-        .eq("id", product_id)
-        .execute()
+        .eq("id", str(product_id)),
+        "상품을 삭제하는 중 오류가 발생했습니다. 연결된 데이터를 확인해 주세요.",
     )
-    if not result.data:
-        return None
-    return ProductPublic.model_validate(result.data[0])
-
-
-# 5. 수정
-def product_update(
-    product_id: str,
-    product: ProductUpdate,
-) -> ProductPublic | None:
-    supabase = get_supabase()
-
-    result = (
-        supabase.table("products")
-        .update(
-                {
-                    "name": product.name,
-                    "price": product.price,
-                }
-            )
-            .eq("id", product_id)
-            .execute()
-    )
-    if not result.data:
-        return None
-    return ProductPublic.model_validate(result.data[0])
+    if not rows:
+        raise HTTPException(status_code=500, detail="상품 삭제 결과가 없습니다.")
+    return ProductPublic.model_validate(rows[0])

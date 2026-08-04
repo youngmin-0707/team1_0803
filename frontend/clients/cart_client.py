@@ -1,3 +1,6 @@
+# 작성자: 권오현
+# 작업 구분: port
+
 import os
 from typing import Any
 from uuid import UUID

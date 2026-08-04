@@ -1,3 +1,6 @@
+# 작성자: 권오현
+# 작업 구분: port
+
 from uuid import UUID
 
 import streamlit as st

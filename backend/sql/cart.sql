@@ -1,3 +1,6 @@
+-- 작성자: 권오현
+-- 작업 구분: port
+
 -- Supabase SQL Editor에서 실행합니다.
 -- 테이블과 컬럼은 팀 ERD의 carts 정의를 기준으로 합니다.
 -- 실제 실행 전 customers.id와 products.id가 UUID인지 확인해야 합니다.
