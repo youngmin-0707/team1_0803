@@ -211,3 +211,22 @@ def order_cancel(order_id: str) -> OrderPublic:
         )
 
     return _apply_status(supabase, order_id, "cancelled")
+
+
+# 6. 주문 삭제 (소프트 삭제)
+def order_delete(order_id: str) -> OrderPublic:
+    supabase = get_supabase()
+    order = _get_active_order(supabase, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail=f"주문 ID {order_id}를 찾을 수 없습니다.")
+
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    result = (
+        supabase.table("orders")
+        .update({"deleted_at": now.isoformat(), "updated_at": now.isoformat()})
+        .eq("id", order_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=500, detail="주문 삭제에 실패했습니다.")
+    return OrderPublic.model_validate(result.data[0])

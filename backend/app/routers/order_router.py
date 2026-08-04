@@ -7,6 +7,7 @@ from app.schemas.order_schema import OrderCreate, OrderStatusUpdate
 from app.services.order_service import (
     order_cancel,
     order_create,
+    order_delete,
     order_get,
     order_get_all,
     order_update_status,
@@ -80,6 +81,18 @@ def cancel(order_id: str) -> ApiResponse:
     response = ApiResponse(
         success=True,
         message="주문이 취소되었습니다.",
+        data=order,
+    )
+    return response
+
+
+# 6. 주문 삭제 (소프트 삭제)
+@order_router.delete("/order/{order_id}")
+def delete(order_id: str) -> ApiResponse:
+    order = order_delete(order_id)
+    response = ApiResponse(
+        success=True,
+        message="주문이 삭제되었습니다.",
         data=order,
     )
     return response
