@@ -7,17 +7,6 @@
 
 ## 폴더 구조
 
-```text
-mini__frontend_02/
-├─ app.py
-├─ requirements.txt
-└─ app_pages/
-   ├─ 01_home.py
-   ├─ 02_signup.py
-   ├─ 03_log_view.py
-   ├─ 04_chat.py
-   └─ 05_database_view.py
-```
 
 ## 실행 방법
 
