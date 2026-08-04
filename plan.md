@@ -382,7 +382,6 @@ test: 장바구니 수량 변경 테스트 추가
 - [ ] `develop` 브랜치에서 다른 기능과 함께 정상 실행된다.
 
 </details>
-
 <details>
 <summary><strong>11. 장상옥 담당 구현 및 인계 현황</strong></summary>
 
@@ -399,7 +398,7 @@ test: 장바구니 수량 변경 테스트 추가
 
 ### 검증 결과
 
-- Backend 테스트: `15 passed`
+- Backend 통합 테스트: `19 passed`
 - Backend와 Frontend Python 문법 검사 완료
 - 테스트는 Supabase를 직접 호출하지 않는 모킹 방식으로 수행
 
