@@ -30,25 +30,13 @@ def request(method: str, path: str, json: dict[str, Any] | None = None):
             "백엔드 서버에 연결할 수 없습니다. 서버 실행 상태를 확인해 주세요."
         ) from error
 
-    if response.status_code == 401:
-        raise BackendAPIError(
-            "로그인 아이디 또는 패스워드 문제."
-        )
-
-    if response.status_code == 409:
-        raise BackendAPIError(
-            "이미 사용중인 ID입니다."
-        )
-
-    if response.status_code == 404:
-        raise BackendAPIError(
-            "존재하지 않습니다."
-        )
-
-
     try:
         payload = response.json()
     except ValueError as error:
         raise BackendAPIError("백엔드가 올바른 JSON을 반환하지 않았습니다.") from error
+
+    if response.is_error:
+        message = payload.get("detail", "요청 처리에 실패했습니다.")
+        raise BackendAPIError(message)
 
     return payload

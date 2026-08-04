@@ -1,6 +1,7 @@
 # auth_router.py
 
 from fastapi import APIRouter
+from uuid import UUID
 from app.schemas.auth_scheme import (
     AuthCreate,
     AuthPublic,
@@ -35,17 +36,17 @@ def signin(auth:AuthLogin) -> AuthPublic:
     return sign_in_process(auth)
 
 @auth_router.get("/auth/signout/{input_id}")
-def signout(input_id:str) -> AuthPublic:
+def signout(input_id: UUID) -> AuthPublic:
     return sign_out_process(input_id)
 
 @auth_router.get("/auth/mypage/{input_id}")
-def mypage(input_id:str) -> AuthPublic:
+def mypage(input_id: UUID) -> AuthPublic:
     """회원 마이페이지 - ID를 입력하면 회원 정보(id, name)를 반환합니다."""
     return my_page_process(input_id)
 
 @auth_router.put("/auth/password/{input_id}")
 def update_password(
-    input_id: str,
+    input_id: UUID,
     password_data: PasswordUpdate,
 ):
     """회원 비밀번호 변경"""

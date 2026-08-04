@@ -1,6 +1,7 @@
 # product_router.py
 
 from fastapi import APIRouter, HTTPException
+from uuid import UUID
 
 from app.schemas.product_schema import ProductCreate, ProductUpdate
 from app.services.product_service import (
@@ -41,7 +42,7 @@ def create(product: ProductCreate) -> ApiResponse:
 
 # 2. 한개 조회
 @product_router.get("/product/get/{product_id}")
-def get(product_id: str) -> ApiResponse:
+def get(product_id: UUID) -> ApiResponse:
 
     product = product_get(product_id)
     if product is None:
@@ -69,7 +70,7 @@ def get_all() -> ApiResponse:
 
 # 4. 한개 삭제
 @product_router.delete("/product/delete/{product_id}")
-def delete(product_id: str) -> ApiResponse:
+def delete(product_id: UUID) -> ApiResponse:
     product = product_delete(product_id)
     if product is None:
         raise HTTPException(
@@ -85,7 +86,7 @@ def delete(product_id: str) -> ApiResponse:
 
 # 5. 수정
 @product_router.put("/product/{product_id}")
-def update(product_id: str, product: ProductUpdate) -> ApiResponse:
+def update(product_id: UUID, product: ProductUpdate) -> ApiResponse:
     updated_product = product_update(product_id, product)
     if updated_product is None:
         raise HTTPException(

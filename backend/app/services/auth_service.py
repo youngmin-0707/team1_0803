@@ -4,6 +4,9 @@ from app.schemas.auth_scheme import (
     AuthCreate, AuthLogin, AuthPublic, PasswordUpdate, AuthUpdate
 )
 from app.core.password import hash_password, verify_password
+from datetime import datetime
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
 
 def sign_up_process(auth: AuthCreate):
@@ -19,9 +22,11 @@ def sign_up_process(auth: AuthCreate):
         supabase.table("customers")
          .insert(
             {
-                "id": auth.id,
+                "id": str(auth.id),
                 "pwd": hash_password(auth.pwd),
                 "name": auth.name,
+                "created_at": datetime.now(ZoneInfo("Asia/Seoul")).isoformat(),
+                "updated_at": datetime.now(ZoneInfo("Asia/Seoul")).isoformat(),
             }
         )
         .execute()
@@ -47,9 +52,10 @@ def update_process(auth: AuthUpdate):
             {
                 "pwd": hash_password(auth.pwd),
                 "name": auth.name,
+                "updated_at": datetime.now(ZoneInfo("Asia/Seoul")).isoformat(),
             }
         )
-        .eq("id", auth.id)
+        .eq("id", str(auth.id))
         .execute()
     )
     if not result.data:
@@ -79,7 +85,7 @@ def sign_in_process(auth: AuthLogin):
             detail = "아이디 또는 패스워드가 올바르지 않습니다."
         )
 
-def sign_out_process(input_id:str):
+def sign_out_process(input_id: UUID):
     """ 회원 로그 아웃 """
 
     return AuthPublic(
@@ -87,7 +93,7 @@ def sign_out_process(input_id:str):
     )
 
 def update_password_process(
-    input_id: str,
+    input_id: UUID,
     password_data: PasswordUpdate,
 ):
     """기존 비밀번호를 확인한 후 새 비밀번호로 변경합니다."""
@@ -121,9 +127,10 @@ def update_password_process(
         .update(
             {
                 "pwd": hash_password(password_data.new_pwd),
+                "updated_at": datetime.now(ZoneInfo("Asia/Seoul")).isoformat(),
             }
         )
-        .eq("id", input_id)
+        .eq("id", str(input_id))
         .execute()
     )
 
@@ -137,7 +144,7 @@ def update_password_process(
         "message": "비밀번호가 변경되었습니다.",
     }
 
-def my_page_process(input_id:str):
+def my_page_process(input_id: UUID):
     """ 회원 마이페이지 """
 
     db_customer = _customer_get(input_id)
@@ -148,13 +155,13 @@ def my_page_process(input_id:str):
         )
     return AuthPublic.model_validate(db_customer)
 
-def _customer_get(customer_id: str) -> dict | None:
+def _customer_get(customer_id: UUID) -> dict | None:
     supabase = get_supabase()
 
     result = (
         supabase.table("customers")
         .select("*")
-        .eq("id", customer_id)
+        .eq("id", str(customer_id))
         .execute()
     )
     if not result.data:

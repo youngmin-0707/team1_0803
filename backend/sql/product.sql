@@ -1,22 +1,27 @@
--- Supabase SQL Editor에서 실행합니다.
--- 테이블이 이미 존재한다면 CREATE TABLE 구문은 생략하고 INSERT 구문만 실행하세요.
-
+-- 팀 ERD 기준 products 테이블입니다. Supabase SQL Editor에서 실행합니다.
 CREATE TABLE IF NOT EXISTS products (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     price INTEGER NOT NULL CHECK (price >= 0),
-    created_at TIMESTAMP NOT NULL
+    stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    category_id UUID,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
+    CONSTRAINT products_name_not_blank CHECK (btrim(name) <> '')
 );
 
--- 예제 상품 데이터 10건
-INSERT INTO products (id, name, price, created_at) VALUES
-    ('20260722090000000001', '기본 티셔츠', 15000, '2026-07-22 09:00:00'),
-    ('20260722090500000002', '청바지', 45000, '2026-07-22 09:05:00'),
-    ('20260722091000000003', '후드 집업', 59000, '2026-07-22 09:10:00'),
-    ('20260722091500000004', '운동화', 79000, '2026-07-22 09:15:00'),
-    ('20260722092000000005', '캔버스 백', 32000, '2026-07-22 09:20:00'),
-    ('20260722092500000006', '볼캡', 18000, '2026-07-22 09:25:00'),
-    ('20260722093000000007', '양말 3팩', 12000, '2026-07-22 09:30:00'),
-    ('20260722093500000008', '코튼 셔츠', 39000, '2026-07-22 09:35:00'),
-    ('20260722094000000009', '니트 가디건', 65000, '2026-07-22 09:40:00'),
-    ('20260722094500000010', '데님 재킷', 88000, '2026-07-22 09:45:00');
+-- 기존 테이블에 누락된 ERD 컬럼을 보완합니다.
+ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    ADD COLUMN IF NOT EXISTS category_id UUID,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT now();
+
+-- category_id 외래키는 categories 생성 후 category.sql에서 적용합니다.
+-- 기존 id가 TEXT인 환경은 carts/order_items/reviews/inquiries 외래키와 함께
+-- UUID로 마이그레이션해야 하므로 운영 데이터 백업 후 별도 적용합니다.
+
+INSERT INTO products (id, name, price, stock, created_at, updated_at) VALUES
+    ('10000000-0000-0000-0000-000000000001', '기본 티셔츠', 15000, 100, '2026-07-22 09:00:00+09', '2026-07-22 09:00:00+09'),
+    ('10000000-0000-0000-0000-000000000002', '청바지', 45000, 50, '2026-07-22 09:05:00+09', '2026-07-22 09:05:00+09'),
+    ('10000000-0000-0000-0000-000000000003', '후드 집업', 59000, 40, '2026-07-22 09:10:00+09', '2026-07-22 09:10:00+09')
+ON CONFLICT (id) DO NOTHING;
