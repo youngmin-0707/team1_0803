@@ -13,6 +13,22 @@ from app.schemas.order_schema import (
     OrderPublic,
 )
 
+# 팀 논의에서 잠정 합의된 값. 최종 확정 전까지는 여기서만 검증에 사용합니다.
+ALLOWED_STATUSES = {
+    "pending",
+    "paid",
+    "shipped",
+    "delivered",
+    "cancelled",
+    "refunded",
+    "returned",
+    "payment_failed",
+}
+# 배송이 시작되기 전(paid까지)에만 취소를 허용합니다.
+CANCELLABLE_STATUSES = {"pending", "paid"}
+# 도착했거나 이미 종료된 주문은 상태를 더 바꿀 수 없습니다.
+TERMINAL_STATUSES = {"cancelled", "refunded", "returned"}
+
 
 def _generate_id(seq: int = 0) -> str:
     now = datetime.now(ZoneInfo("Asia/Seoul"))
@@ -134,3 +150,64 @@ def order_get(order_id: str) -> OrderDetailPublic | None:
     return OrderDetailPublic.model_validate(
         {**order_data, "items": items, "total_amount": total_amount}
     )
+
+
+def _get_active_order(supabase, order_id: str) -> dict | None:
+    result = (
+        supabase.table("orders")
+        .select("*")
+        .eq("id", order_id)
+        .is_("deleted_at", "null")
+        .execute()
+    )
+    if not result.data:
+        return None
+    return result.data[0]
+
+
+def _apply_status(supabase, order_id: str, status: str) -> OrderPublic:
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    result = (
+        supabase.table("orders")
+        .update({"status": status, "updated_at": now.isoformat()})
+        .eq("id", order_id)
+        .execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=500, detail="주문 상태 변경에 실패했습니다.")
+    return OrderPublic.model_validate(result.data[0])
+
+
+# 4. 주문 상태 변경
+def order_update_status(order_id: str, status: str) -> OrderPublic:
+    if status not in ALLOWED_STATUSES:
+        raise HTTPException(status_code=400, detail=f"허용되지 않은 주문 상태입니다: {status}")
+
+    supabase = get_supabase()
+    order = _get_active_order(supabase, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail=f"주문 ID {order_id}를 찾을 수 없습니다.")
+
+    if order["status"] in TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"이미 종료된 주문({order['status']})은 상태를 변경할 수 없습니다.",
+        )
+
+    return _apply_status(supabase, order_id, status)
+
+
+# 5. 주문 취소
+def order_cancel(order_id: str) -> OrderPublic:
+    supabase = get_supabase()
+    order = _get_active_order(supabase, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail=f"주문 ID {order_id}를 찾을 수 없습니다.")
+
+    if order["status"] not in CANCELLABLE_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"현재 상태({order['status']})에서는 주문을 취소할 수 없습니다.",
+        )
+
+    return _apply_status(supabase, order_id, "cancelled")
