@@ -129,3 +129,13 @@ def test_cancel_order_returns_cancelled_order(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "cancelled"
+
+
+def test_delete_order_returns_deleted_order(monkeypatch):
+    monkeypatch.setattr(order_router, "order_delete", lambda order_id: make_order(order_id))
+
+    response = client.delete("/order/order-1")
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert response.json()["data"]["id"] == "order-1"
